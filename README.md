@@ -6,7 +6,7 @@ this graphic considers the the estimated average annual temperature
 changes for the Gyal Municipality of the Pest region of Hungary
 between the years 1960 and 2018.
 
-![](Tufte1_PNG)
+![](Tufte1.PNG)
 
 Scrutinizing this graphic under Tufte's Design Principles,
 we first see the Principle of maximizing data-ink ratio demonstrated in 
