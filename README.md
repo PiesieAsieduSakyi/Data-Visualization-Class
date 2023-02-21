@@ -1,7 +1,7 @@
 # Data-Visualization-Class
--The data visualization below is an extracted graphic file 
--from a repetoire of Global Climate Change graphics 
--from the Nightingale data visualization website. In particular,
+The data visualization below is an extracted graphic file 
+from a repetoire of Global Climate Change graphics 
+from the Nightingale data visualization website. In particular,
 this graphic considers the the estimated average annual temperature
 changes for the Gyal Municipality of the Pest region of Hungary
 between the years 1960 and 2018.
@@ -24,4 +24,8 @@ layering as a means to separate/group low temperatures, moderate
 temperatures and high temperatures. As can be observed, the color blue
 was used for low temperature declines (below 0 degrees celsius); yellow-to-
 orange for moderate temperature increases (between 0 and +2 degrees celsius);
-and red for high temperature increases (above +2 degrees celsius)
+and red for high temperature increases (above +2 degrees celsius).
+
+# Sources:
+1.https://mschermann.github.io/data_viz_reader/fundamentals.html
+2. https://nightingaledvs.com/
