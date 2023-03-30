@@ -1,0 +1,126 @@
+---
+title: "DATA VIZ - HOMEWORK V"
+author: "NATHANIEL ASIEDU SAKYI"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    toc: true
+    #keep_tex: yes
+---
+
+\newpage
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = FALSE, message = FALSE, cache = F)
+```
+
+```{r load-packages}
+library(stringr)
+library(dplyr)
+library(plotly)
+#library(hrbrthemes)
+library(kableExtra)
+library(knitr)
+library(tinytex)
+library(tibble)
+library(ggrepel)
+library("reshape2")
+# change default ggplot theme
+theme_set(theme_classic())
+```
+
+
+\section{Loading Complete Data Set into R}
+```{r}
+dat <- read.csv("serialdat.csv", header = T)
+class(dat); dim(dat)
+names(dat)
+```
+
+*Comments:* The data consists of 43 observations and 6 variables which are information about gene variant transcriptions, across three replications of each variant.
+
+
+\subsection{Inspecting The Unique Groups of the Data}
+```{r}
+unique(dat[-43,]$X10.x.copies, na.rm=T)
+```
+
+\subsection{Extracting the Groups Within Data for Visualization}
+```{r}
+dat1 <- dat[-43,]%>%
+  select(-X10.x.copies)%>%
+  mutate(group = sapply(str_split(SUMOvar,'-'), function(x) {x[2]}),
+    .after="SUMOvar")
+  
+head(dat1) %>%
+  kable(booktabs=T, linesep="",
+    caption = "First few observations") 
+
+```
+*Comment:* Another column named "group" which identifies the six different groups was created and added as above.
+
+\section{Visualizing The Distribution of Gene Variants By Average Cq.}
+
+```{r}
+ggplot(dat1, aes(group, Average.Cq, group=group, color=group)) +
+  geom_boxplot(show.legend = F) +
+  geom_point(show.legend = F)+
+  ggtitle("Gene Variant Transcriptions Distributions By Average Cq")
+```
+
+*Comments:* It can be seen from the above that, although there exist significant variations among each of the six groups, the variation within the $10^3$ group is relatively least among the groups. Also, whereas group $10^1$ has the largest Average Cq, group $10^6$ has the least Average Cq.
+
+
+
+\section{Melting Data For Visualizing Distributions Across The Three Replications}
+```{r}
+library(tidyr)
+
+df <- dat1 %>% 
+  gather(key = 'Replicate', value = 'Value',
+    -SUMOvar,-group,-Average.Cq)
+
+df <- df %>% dplyr::filter(Value == 1) %>% 
+  select(SUMOvar, group, Replicate, Average.Cq)
+
+df_tall <- dat1 %>% 
+  pivot_longer(starts_with("Replicate"), 
+    values_to = "rep_value", names_to = "rep_id")
+
+
+head(df_tall)  %>%
+  kable(booktabs=T, linesep="",
+    caption = "First few observations - Melted Data")
+# %>%
+#   kable_classic()
+```
+
+\subsection{Visualizing Distributions Across The Three Replications}
+```{r}
+library(ggridges)
+
+rep_median <- df_tall %>% group_by(rep_id) %>%
+  summarise(med=median(rep_value))%>%
+  pull(med)
+rep_cols <- c("dodgerblue", "magenta", "darkgreen")
+ggplot(df_tall, aes(x = rep_value, y = rep_id)) + 
+  theme_minimal() +
+  scale_fill_manual(values = rep_cols)+
+  geom_density_ridges(aes(fill = rep_id), alpha = 0.3) +
+  geom_vline(xintercept = rep_median[1], color=rep_cols[1]) +
+   geom_vline(xintercept = rep_median[2], color=rep_cols[2]) +
+   geom_vline(xintercept = rep_median[3], color=rep_cols[3]) +
+  labs(title = "Density Distribution of the Three Replications",
+    y = "", x = "Replication value") +
+    theme(legend.position = "none")
+
+
+```
+
+*Comments:* The plot above reveals the distribution of the gene variant transcriptions across the three replications. It can be clearly seen from the above that, the three distributions are each skewed to the left. The similarity of the skewness implies all three replications are identically distributed. As a result, the median was a chosen measure of location for comparison. It could be seen that, Replicate.1 has the highest median among the three. And the medians for the other two seem to overlap.
+
+# Appendix {-}
+```{r ref.label=knitr::all_labels(), echo=T, eval=FALSE}
+
+```
+
