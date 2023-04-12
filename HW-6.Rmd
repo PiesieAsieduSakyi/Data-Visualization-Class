@@ -1,0 +1,103 @@
+---
+title: "DATA VIZ - HOMEWORK VI"
+author: "NATHANIEL ASIEDU SAKYI"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = FALSE, message = FALSE, cache = F)
+```
+
+```{r load-packages}
+
+library(stringr)
+library(dplyr)
+library(plotly)
+#library(hrbrthemes)
+library(kableExtra)
+library(knitr)
+library(tinytex)
+library(tibble)
+library(ggrepel)
+library("reshape2")
+# change default ggplot theme
+theme_set(theme_classic())
+
+```
+
+
+\section{Loading Complete Data Set into R}
+```{r}
+dat <- read.csv("serialdat.csv", header = T)
+class(dat); dim(dat)
+names(dat)
+
+```
+
+*Comments:* The data consists of 43 observations and 6 variables which are information about gene variant transcriptions, across three replications of each variant.
+
+
+\subsection{Inspecting The Unique Groups of the Data}
+```{r}
+unique(dat[-43,]$X10.x.copies, na.rm=T)
+```
+
+\subsection{Extracting the Groups Within Data for Visualization}
+```{r}
+dat1 <- dat[-43,]%>%
+  select(-X10.x.copies)%>%
+  mutate(group = sapply(str_split(SUMOvar,'-'), function(x) {x[1]}),
+    .after="SUMOvar")
+  
+head(dat1) %>%
+  kable(booktabs=T, linesep="",
+    caption = "First few observations") 
+
+```
+*Comment:* Another column named "group" which identifies the six different groups was created and added as above.
+
+\section{Melting Data For Visualizing Distributions Across The Three Replications}
+```{r}
+library(tidyr)
+
+df <- dat1 %>% 
+  gather(key = 'Replicate', value = 'Value',
+    -SUMOvar,-group,-Average.Cq)
+
+df <- df %>% dplyr::filter(Value == 1) %>% 
+  select(SUMOvar, group, Replicate, Average.Cq)
+
+df_tall <- dat1 %>% 
+  pivot_longer(starts_with("Replicate"), 
+    values_to = "rep_value", names_to = "rep_id")
+
+
+head(df_tall)  %>%
+  kable(booktabs=T, linesep="",
+    caption = "First few observations - Melted Data")
+```
+
+
+
+\section{Visualizing the Association Between the Replication Values and Average Cq For The Different Gene Variant Transcriptions}
+```{r}
+library(ggpubr)
+ggplot(data = df_tall, mapping = aes(x = rep_value, y = Average.Cq)) + 
+  geom_point(mapping = aes(col = group, shape = rep_id)) + 
+  geom_smooth(method = 'lm', col = "black") + 
+  stat_cor(label.x = 5) + 
+  ylab("Average Cq") + 
+  xlab("Replication Value") + 
+  ggtitle("Correlation Between Replication Values and Average Cq
+    of Gene Variant Transcriptions")
+```
+
+*Comments:* It can be seen there exists a very strong linear correlation between the replication value and the Average Cq. The linear correlation coefficient stands statistically significant at .98. The positive correlation between the two quantities is very strong for all three replicates; as well as for all seven groups of the gene variant transcriptions. although we see one outlier for replicate 1 of the S2V1 gene variant.
+
+# Appendix {-}
+```{r ref.label=knitr::all_labels(), echo=T, eval=FALSE}
+
+```
+
