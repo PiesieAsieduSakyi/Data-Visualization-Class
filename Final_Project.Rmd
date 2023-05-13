@@ -1,0 +1,289 @@
+---
+title: "DATA VIZ - FINAL PROJECT"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    keep_tex: true
+    fig_caption: true
+    latex_engine: pdflatex
+    number_sections: true
+    toc: true
+    toc_depth: 4
+author: 
+- NATHANIEL ASIEDU SAKYI^[nasakyi@miners.utep.edu]
+- UNIVERSITY OF TEXAS AT EL PASO (UTEP)
+geometry: margin=1in
+fontsize: 12pt
+spacing: single
+header-includes:
+- \usepackage{amsmath}
+- \usepackage{amssymb}
+- \usepackage{amsfonts}
+- \usepackage{amsthm}
+- \usepackage{fancyhdr}
+- \pagestyle{fancy}
+- \fancyhf{}
+- \rhead{STAT 5494-- Statistical Machine Learning}
+- \lhead{Project I}
+- \cfoot{\thepage}
+- \usepackage{algorithm}
+- \usepackage[noend]{algpseudocode}
+---
+
+\newpage
+
+```{r setup, include = FALSE}
+# set global chunk options
+# -------------------------
+knitr::opts_chunk$set(echo = TRUE, cache = F, tidy = T,
+                      warning = F, message = F, options(digits = 3))
+```
+
+```{r echo = F}
+# installed libraries
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(ggalluvial)
+library(ggpubr)
+```
+
+
+
+
+\section{Data Preparation}
+
+\subsection{Bringing the Master and Extra Data Sets into R}
+```{r}
+master <- read.csv("master.csv")
+extra <- read.csv("extra_questions_withID.csv")
+```
+
+\subsection{Inspecting the Variables in Both Data}
+```{r}
+str(master)
+str(extra)
+```
+
+
+\subsection{Filtering Out the 2022 Information from the Master Data Set}
+
+```{r}
+mas_22 <- master %>%
+  filter(Year == "2022")%>%
+  select(RespondentId, Age, Ethnicity, Income,
+    Classification,FedAid,index,Gender,USDAcat)
+
+head(mas_22)
+```
+
+
+\subsection{Merging the Filtered Info From the Master with the Extra}
+```{r}
+new_dat <- inner_join(extra, mas_22)
+#head(new_dat)
+dim(new_dat)
+#names(new_dat)
+```
+
+
+\subsection{Recoding Some Variables}
+```{r}
+new_dat$USDAcat <- 
+  ifelse((new_dat$index==0|new_dat$index==1),"High FS",
+  ifelse((new_dat$index==2|new_dat$index==3|new_dat$index==4),"Low FS",
+  ifelse((new_dat$index==5|new_dat$index==6),"Very Low FS",
+  new_dat$index)))
+
+new_dat$FedAid <- ifelse((new_dat$FedAid=="Emergency Loan"),"Loans",
+  ifelse((new_dat$FedAid=="UTEP's COVID CARES Act Fund"),"Covid Fund",
+    new_dat$FedAid))
+
+new_dat$Gender <- ifelse((new_dat$Gender==1),"Female",
+                    ifelse((new_dat$Gender==2),"Male",
+                     ifelse((new_dat$Gender==3),"Transgender","Others")))
+
+new_dat$DelayComplDegree <- ifelse((new_dat$DelayComplDegree=="Yes, 
+                                    by 1 semester"), "1 Sem Lag",
+  ifelse((new_dat$DelayComplDegree=="Yes, by 2 semesters or more"),
+                                      "2/+ Sems Lag",
+  ifelse((new_dat$DelayComplDegree=="No"), "None", new_dat$DelayComplDegree)))
+
+names(new_dat)[names(new_dat) == "DelayComplDegree"] <- "Delay"
+
+unique(new_dat$FedAid)
+unique(new_dat$USDAcat)
+unique(new_dat$Delay)
+```
+
+
+\section{Preliminary Visualizations of Key Analysis Variables}
+```{r, message=FALSE}
+vartab1 <- as.data.frame(table(new_dat$FedAid))
+#prop <- paste0(round(vartab1[,2]/sum(vartab1[,2])*100,2),"%")
+
+vartab2 <- as.data.frame(table(new_dat$USDACat))
+
+vartab3 <- as.data.frame(table(new_dat$Delay))
+
+
+# Bar plots of Federal Aid and Academic Delay
+
+par(mfrow=c(2,1), mar=rep(3,4))
+
+barplot(vartab1$Freq[order(vartab1$Freq,decreasing = T)],
+        names = vartab1$Var1,col="blue",las=1,
+         main = "Barplot of Federal Aid", cex.axis=0.5)
+
+barplot(vartab3$Freq[order(vartab3$Freq,decreasing = T)], 
+        names = vartab3$Var1,
+        col="green", 
+        main = "Barplot of Academic Delay", cex.axis=0.5)
+```
+
+
+*Comments:* Viewing the above plots, we see that a chunk amount of Federal Aid came from the UTEP Covid Fund, followed by Loans, and others. As regards, the number of semesters students academic progress was delayed by, we see that the majority of students were delayed for 1 semester for one reason or the other.
+
+
+\section{Visualizing Association Between Federal Aid and Food Security}
+
+\subsection{Segmented Bar Chart of Federal Aid and Food Security}
+```{r}
+# Categorical Bubble Plot
+a <- ggplot(new_dat) + 
+     geom_count(aes(FedAid, USDAcat), color = "magenta") +
+     labs(title = "Food Security By Federal Aid") + 
+     theme(plot.title = element_text(hjust = 0.5))
+
+
+# segmented bar plot
+
+seg <- new_dat %>% 
+  mutate(FedAid = FedAid,
+        USDAcat = USDAcat) %>%
+  group_by(FedAid, USDAcat) %>%
+  summarise(freq = n()) %>%
+  mutate(pct_lbl =(round(freq/sum(freq), 2)),
+         lbl = scales::percent(pct_lbl)) 
+
+head(seg)
+
+b <- ggplot(seg, aes(reorder(FedAid,freq), freq, fill = USDAcat)) + 
+     geom_bar(stat = "identity", position = "fill") + 
+     ylab("Proportion") +
+     xlab("Federal Aid") +
+     ggtitle("Food Security By Federal Aid") +
+     theme_minimal() +  labs(fill = "Food Security")
+    #theme_minimal()
+  
+grid.arrange(a, b, nrow=2)
+
+```
+
+
+*Comments:* Seeing from the plots above, we see an interesting relationship between Federal Aid and Food security. In general, students who had high food security received less federal aid. Those who had low food security had a bit more federal aid than those who had high security. However, those who had very low food security had more federal aid, in general, than those who had low and high food security. Interestingly, only students in the very low food security category received "Other" federal aid, other than the remaining types of federal aid. 
+
+
+
+
+
+\section{Visualizing Association Between Food Security and Degree Progress}
+
+# creating stack bar plot
+```{r}
+stack <- new_dat %>%
+  mutate(USDAcat = USDAcat,
+        Delay = Delay) %>%
+  group_by(USDAcat, Delay) %>%
+  summarise(freq = n())%>%
+  mutate(pct = freq/sum(freq),
+         lbl = scales::percent(pct))
+  head(stack)
+
+
+p <- ggplot(stack, aes(fill=reorder(Delay, freq), y=freq,
+  x=USDAcat, label=Delay)) +
+  geom_bar(position="fill", stat="identity") +
+  geom_text(aes(label =lbl), position = position_fill(vjust=
+      0.5), size=2) + 
+  ylab("Proportion") +
+  xlab("Food Security") +
+  ggtitle("Association between Academic Delay
+    and Food Security") +
+  theme_minimal() +  labs(fill = "Delay")
+
+
+
+tab <- new_dat %>%
+  group_by(USDAcat,index, Gender,Delay) %>%
+  summarise(freq = n()) %>% 
+  mutate(prop = round(freq*100/sum(freq),2))
+head(tab)
+
+
+
+# creating a flow chart
+f <- ggplot(tab,
+       aes(axis1 = USDAcat,
+           axis2 = Delay,
+           y = freq)) +
+  geom_alluvium(aes(fill=USDAcat)) +
+  geom_stratum() +
+  geom_text(stat = "stratum", 
+          aes(label = after_stat(stratum))) +
+  scale_x_discrete(limits = c("Food Insecurity", "Degree
+    Progress"), expand = c(.1, .1)) +
+  labs(title = "UTEP 2022 Data", subtitle = "Stratified by
+    Academic Delay and Food Security", y = "Frequency") +
+  theme_minimal()
+
+grid.arrange(p, f, nrow=2)
+```
+
+
+*Comment:* The two plots (the stacked bar graph on top and the flow chart) above reveal an implicitly inverse relationship between UTEP food security and the items pertaining to concentration on school or degree progress. It can be observed that, students who had high food security had maximum to full concentration on their studies and had no semester delays in their degree progress. Students who had low food security had at least one semester delay in their academic progress, whereas students who had very low food security, had at least two semester delays in their degree progress since they lost full concentration on their studies. Thus, it can be concluded that food insecurity had a negative effect on students concentration on studies.
+
+
+
+
+\section{Visualizing the Association Between Gender and Degree Progress}
+```{r}
+par(mar=rep(1,4))
+
+r <- ggplot(tab, mapping = aes(x=Gender, y=Delay,
+  fill=prop)) + 
+  geom_tile(color = "white", linewidth = 1.5, linetype=1) + 
+  # coord_fixed(ratio = 0.) + 
+  labs(title = "Heatmap:School Delay By Gender")
+
+s <- ggplot(new_dat) + 
+  geom_count(aes(Delay, Gender),color="blue") +
+  labs(title = "Bubble Plot:School Delay By Gender") + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+theme(legend.position = "none",
+    axis.text.y = element_text(size=10), # adjust the size of the y-axis text
+
+    axis.title.y = element_text(size=12), # adjust the size of the y-axis title
+
+    axis.text.x = element_text(size=10), # adjust the size of the x-axis text
+
+    axis.title.x = element_text(size=12), # adjust the size of the x-axis title
+
+    plot.title = element_text(size=8), # adjust the size of the plot title
+
+    panel.grid.major.y = element_blank(), # remove the horizontal gridlines
+
+    panel.grid.minor.y = element_blank(), # remove the horizontal gridlines
+
+    plot.margin = unit(c(1, 0.5, 0.5, 3), "lines"))
+
+ggpubr::ggarrange(r, s, nrow = 2)
+```
+
+
+*Comments:* From the Heat map and Categorical bubble plot above, we can generally infer that, for those who had one or  two semesters delay in their degree progress, there were more females than males. And it is the same case that when we observe among those in the "None" Delay category, the females were more than the males. This could be due to the fact that more respondents declared their gender as "female" than those who declared as "male", and thus resulted in the data collecting more information on the female gender than on the male gender. 
+
+
+
+
